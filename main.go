@@ -5,51 +5,46 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
 
-type Response map[string]interface{}
+// 定义一个全局的 map 存储所有路径和对应响应
+var mockData map[string]interface{}
 
-var routes = map[string]func(http.ResponseWriter, *http.Request){
-	"/test": func(w http.ResponseWriter, r *http.Request) {
-		// 获取所有GET参数
-		params := r.URL.Query()
+// 读取 JSON 文件中的内容到 map 中
+func loadMockData(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-		resp := Response{
-			"message": "请求成功了",
-			"params":  params,
-		}
-
-		writeJSON(w, http.StatusOK, resp)
-	},
-	"/login": func(w http.ResponseWriter, r *http.Request) {
-		resp := Response{
-			"code":    200,
-			"message": "登录成功",
-		}
-		writeJSON(w, http.StatusOK, resp)
-	},
+	decoder := json.NewDecoder(file)
+	return decoder.Decode(&mockData)
 }
 
-func writeJSON(w http.ResponseWriter, code int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(data)
-}
-
+// 请求处理函数
 func handler(w http.ResponseWriter, r *http.Request) {
-	if h, ok := routes[r.URL.Path]; ok {
-		h(w, r)
+	path := r.URL.Path
+
+	if data, ok := mockData[path]; ok {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(data)
 	} else {
 		http.NotFound(w, r)
 	}
 }
 
+// 启动主函数
 func main() {
-	port := 4332
-	fmt.Printf("MockServer启动，监听端口 %d\n", port)
-	http.HandleFunc("/", handler)
-	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	err := loadMockData("mock_data.json")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("加载 mock_data.json 失败: %v\n", err)
 	}
+
+	port := 4332
+	fmt.Printf("✅ Mock 服务启动成功，监听端口 %d\n", port)
+	http.HandleFunc("/", handler)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
