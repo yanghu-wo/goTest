@@ -46,6 +46,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	port := 4332
+	
 	fmt.Printf("MockServer启动，监听端口 %d\n", port)
 	http.HandleFunc("/", handler)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
